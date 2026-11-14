@@ -58,6 +58,27 @@ def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     return ActionResult(ok=True, message=message, entry=entry)
 
 
+@router.post("/{entry_id}/bind-catalog", response_model=ActionResult)
+def bind_catalog(entry_id: int, payload: EntryPayload) -> ActionResult:
+    """把采样输出表绑定到目录发布方案冻结的同一份只读字段快照。"""
+    entry_code = str(payload.values.get("条目编号") or "").strip()
+    if not entry_code:
+        return ActionResult(ok=False, message="绑定目录时必须提供条目编号")
+    entry, message = service.bind_catalog(entry_id, entry_code)
+    if entry is None:
+        return ActionResult(ok=False, message=message)
+    return ActionResult(ok=True, message=message, entry=entry)
+
+
+@router.get("/{entry_id}/catalog-snapshot")
+def catalog_snapshot(entry_id: int) -> dict[str, Any]:
+    """查看采样配置引用的只读共享字段清单快照，确认输出表引用了哪份数据集。"""
+    snapshot = service.read_snapshot(entry_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail=f"采样配置 {entry_id} 不存在或已归档")
+    return snapshot
+
+
 @router.get("/export")
 def export_entries() -> dict[str, Any]:
     """导出数据采样管理清单：返回当前过滤条件下的全量数据。"""
